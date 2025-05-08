@@ -20,6 +20,8 @@
 #define REALM_ARRAY_BLOB_HPP
 
 #include <realm/array.hpp>
+#include <realm/binary_data.hpp>
+#include <realm/string_data.hpp>
 
 namespace realm {
 
@@ -29,9 +31,7 @@ public:
     static constexpr size_t max_binary_size = 0xFFFFF8 - Array::header_size;
 
     explicit ArrayBlob(Allocator&) noexcept;
-    ~ArrayBlob() noexcept override
-    {
-    }
+    ~ArrayBlob() noexcept override {}
 
     // Disable copying, this is not allowed.
     ArrayBlob& operator=(const ArrayBlob&) = delete;
@@ -64,10 +64,7 @@ public:
     /// initialized to zero.
     static MemRef create_array(size_t init_size, Allocator&);
 
-#ifdef REALM_DEBUG
     void verify() const;
-    void to_dot(std::ostream&, StringData title = StringData()) const;
-#endif
 
 private:
     size_t calc_byte_len(size_t for_size, size_t width) const override;

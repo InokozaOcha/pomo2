@@ -9,18 +9,19 @@
 import UIKit
 import AVFoundation
 import RealmSwift
-import GoogleMobileAds
+//import GoogleMobileAds
 import AudioToolbox
 
-class Running: UIViewController , GADRewardBasedVideoAdDelegate{
+//class Running: UIViewController , GADRewardBasedVideoAdDelegate{
+class Running: UIViewController {
     var rewardItem = 0
     
     var timeStampEnd = 0
     
-    func rewardBasedVideoAd(_ rewardBasedVideoAd: GADRewardBasedVideoAd, didRewardUserWith reward: GADAdReward) {
-        rewardItem = 1
-        return
-    }
+//    func rewardBasedVideoAd(_ rewardBasedVideoAd: GADRewardBasedVideoAd, didRewardUserWith reward: GADAdReward) {
+//        rewardItem = 1
+//        return
+//    }
     
     
     let backmusicPath = Bundle.main.bundleURL.appendingPathComponent("nc97718.wav")
@@ -215,7 +216,8 @@ class Running: UIViewController , GADRewardBasedVideoAdDelegate{
                 print("cancel")
             })
         } else {
-            endAlert = UIAlertController(title: "まだ時間あるけど…", message: "休憩しますか？\n広告の後、休憩に入ります", preferredStyle: .alert)
+            //endAlert = UIAlertController(title: "まだ時間あるけど…", message: "休憩しますか？\n広告の後、休憩に入ります", preferredStyle: .alert)
+            endAlert = UIAlertController(title: "まだ時間あるけど…", message: "休憩しますか？", preferredStyle: .alert)
             endAction = UIAlertAction(title: "Yes", style: .default, handler:{
                 (action: UIAlertAction!) -> Void in
                 
@@ -223,16 +225,26 @@ class Running: UIViewController , GADRewardBasedVideoAdDelegate{
                     self.saveEvent()
                 }
                 
-                if GADRewardBasedVideoAd.sharedInstance().isReady == true {
-                  GADRewardBasedVideoAd.sharedInstance().present(fromRootViewController: self)
-                }else {
-                    print("Ad wasn't ready")
-                    let storyboard: UIStoryboard = self.storyboard!
-                    let nextView = storyboard.instantiateViewController(withIdentifier: "Break") as! Break
-                    nextView.modalPresentationStyle = .fullScreen
-                    // ③画面遷移
-                    self.present(nextView, animated: true, completion: nil)
-                }
+                print("Ad skip")
+                let storyboard: UIStoryboard = self.storyboard!
+                let nextView = storyboard.instantiateViewController(withIdentifier: "Break") as! Break
+                nextView.modalPresentationStyle = .fullScreen
+                // ③画面遷移
+                self.present(nextView, animated: true, completion: nil)
+
+                
+                
+                
+//                if GADRewardBasedVideoAd.sharedInstance().isReady == true {
+//                  GADRewardBasedVideoAd.sharedInstance().present(fromRootViewController: self)
+//                }else {
+//                    print("Ad wasn't ready")
+//                    let storyboard: UIStoryboard = self.storyboard!
+//                    let nextView = storyboard.instantiateViewController(withIdentifier: "Break") as! Break
+//                    nextView.modalPresentationStyle = .fullScreen
+//                    // ③画面遷移
+//                    self.present(nextView, animated: true, completion: nil)
+//                }
                 
                 
                              //      arlertMusic.stop()let storyboard: UIStoryboard = self.storyboard!
@@ -430,7 +442,7 @@ class Running: UIViewController , GADRewardBasedVideoAdDelegate{
  */
                 
             } else {
-                endAlert = UIAlertController(title: "終了です！", message: "広告の後、休憩に入ります", preferredStyle: .alert)
+                endAlert = UIAlertController(title: "終了です！", message: "休憩に入ります", preferredStyle: .alert)
                 endAction = UIAlertAction(title: "OK", style: .default, handler:{
                     (action: UIAlertAction!) -> Void in
                     if self.count != -100 {
@@ -439,23 +451,36 @@ class Running: UIViewController , GADRewardBasedVideoAdDelegate{
                   //      arlertMusic.stop()
                     self.backmusicPlayer.stop()
                         print("OK")
-                        if GADRewardBasedVideoAd.sharedInstance().isReady == true {
-                          GADRewardBasedVideoAd.sharedInstance().present(fromRootViewController: self)
-                        }else {
-                            print("Ad wasn't ready")
-                            // ①storyboardのインスタンス取得
-                                 let storyboard: UIStoryboard = self.storyboard!
-                                 
-                                        // ②遷移先ViewControllerのインスタンス取得
-                                 let nextView = storyboard.instantiateViewController(withIdentifier: "Break") as! Break
-                                 //nextView.breakCallBack =  { self.callBack() }()
-                                 nextView.modalPresentationStyle = .fullScreen
-                            
-                                        // ③画面遷移
-                                 self.present(nextView, animated: true, completion: nil)
-                                 //self.performSegue(withIdentifier: "goBreakTime", sender: self)
-
-                        }
+                    
+                    // ①storyboardのインスタンス取得
+                         let storyboard: UIStoryboard = self.storyboard!
+                         
+                                // ②遷移先ViewControllerのインスタンス取得
+                         let nextView = storyboard.instantiateViewController(withIdentifier: "Break") as! Break
+                         //nextView.breakCallBack =  { self.callBack() }()
+                         nextView.modalPresentationStyle = .fullScreen
+                    
+                                // ③画面遷移
+                         self.present(nextView, animated: true, completion: nil)
+                         //self.performSegue(withIdentifier: "goBreakTime", sender: self)
+                        
+//                        if GADRewardBasedVideoAd.sharedInstance().isReady == true {
+//                          GADRewardBasedVideoAd.sharedInstance().present(fromRootViewController: self)
+//                        }else {
+//                            print("Ad wasn't ready")
+//                            // ①storyboardのインスタンス取得
+//                                 let storyboard: UIStoryboard = self.storyboard!
+//
+//                                        // ②遷移先ViewControllerのインスタンス取得
+//                                 let nextView = storyboard.instantiateViewController(withIdentifier: "Break") as! Break
+//                                 //nextView.breakCallBack =  { self.callBack() }()
+//                                 nextView.modalPresentationStyle = .fullScreen
+//
+//                                        // ③画面遷移
+//                                 self.present(nextView, animated: true, completion: nil)
+//                                 //self.performSegue(withIdentifier: "goBreakTime", sender: self)
+//
+//                        }
                     
                         
                       
@@ -537,12 +562,12 @@ class Running: UIViewController , GADRewardBasedVideoAdDelegate{
     
     override func viewDidAppear(_ animated: Bool) {
         super.viewDidAppear(animated)
-        GADRewardBasedVideoAd.sharedInstance().delegate = self
-        
-        //GADRewardBasedVideoAd.sharedInstance().load(GADRequest(),withAdUnitID: "ca-app-pub-3940256099942544/1712485313")
-        //GADRewardBasedVideoAd.sharedInstance().load(GADRequest(),withAdUnitID: "ca-app-pub-2854457128650096~1148738361")
-        GADRewardBasedVideoAd.sharedInstance().load(GADRequest(),withAdUnitID: "ca-app-pub-2854457128650096/2188990319")
-        
+//        GADRewardBasedVideoAd.sharedInstance().delegate = self
+//
+//        //GADRewardBasedVideoAd.sharedInstance().load(GADRequest(),withAdUnitID: "ca-app-pub-3940256099942544/1712485313")
+//        //GADRewardBasedVideoAd.sharedInstance().load(GADRequest(),withAdUnitID: "ca-app-pub-2854457128650096~1148738361")
+//        GADRewardBasedVideoAd.sharedInstance().load(GADRequest(),withAdUnitID: "ca-app-pub-2854457128650096/2188990319")
+//
         count = 0
         
         dateNow = getToday(format:"yyyy/MM/dd")
@@ -668,45 +693,45 @@ class Running: UIViewController , GADRewardBasedVideoAdDelegate{
         Realm.Configuration.defaultConfiguration = config
     }
     
-    func rewardBasedVideoAdDidClose(_ rewardBasedVideoAd: GADRewardBasedVideoAd) {
-      print("Reward based video ad has completed.")
-        print("広告終了！！！！！！！！！！！！！！！！！！！！！！！！！！！！！！！！！！！！！！！")
-        let settings = UserDefaults.standard
-        let breakTime = settings.integer(forKey: "Bh")*3600 + settings.integer(forKey: "Bm")*60 + settings.integer(forKey: "Bs")
-        adDuration = Int(Date().timeIntervalSince(adStart))
-        print(adDuration)
-        if (adDuration <= breakTime ) {
-            if (rewardItem == 1 ){
-                if let nowTimer = timer {
-                   if nowTimer.isValid == true {
-                       nowTimer.invalidate()
-                   }
-                }
-                let settings = UserDefaults.standard
-                settings.setValue(settings.integer(forKey: "repeatRest" ) - 1, forKey:"repeatRest")
-                settings.synchronize()
-                rewardItem = 0
-                let storyboard: UIStoryboard = self.storyboard!
-                let nextView = storyboard.instantiateViewController(withIdentifier: "Break") as! Break
-                nextView.modalPresentationStyle = .fullScreen
-                nextView.adDuration = adDuration
-                // ③画面遷移
-                self.present(nextView, animated: true, completion: nil)
-            }
-            
-        }
-        
-        
-        
-    }
-    
-    func rewardBasedVideoAdDidStartPlaying(_ rewardBasedVideoAd: GADRewardBasedVideoAd) {
-        print("Reward based video ad started playing.")
-        
-        adStart = Date()
-        
-        print("adtimer Start!!!!!!!!!!!.")
-    }
+//    func rewardBasedVideoAdDidClose(_ rewardBasedVideoAd: GADRewardBasedVideoAd) {
+//      print("Reward based video ad has completed.")
+//        print("広告終了！！！！！！！！！！！！！！！！！！！！！！！！！！！！！！！！！！！！！！！")
+//        let settings = UserDefaults.standard
+//        let breakTime = settings.integer(forKey: "Bh")*3600 + settings.integer(forKey: "Bm")*60 + settings.integer(forKey: "Bs")
+//        adDuration = Int(Date().timeIntervalSince(adStart))
+//        print(adDuration)
+//        if (adDuration <= breakTime ) {
+//            if (rewardItem == 1 ){
+//                if let nowTimer = timer {
+//                   if nowTimer.isValid == true {
+//                       nowTimer.invalidate()
+//                   }
+//                }
+//                let settings = UserDefaults.standard
+//                settings.setValue(settings.integer(forKey: "repeatRest" ) - 1, forKey:"repeatRest")
+//                settings.synchronize()
+//                rewardItem = 0
+//                let storyboard: UIStoryboard = self.storyboard!
+//                let nextView = storyboard.instantiateViewController(withIdentifier: "Break") as! Break
+//                nextView.modalPresentationStyle = .fullScreen
+//                nextView.adDuration = adDuration
+//                // ③画面遷移
+//                self.present(nextView, animated: true, completion: nil)
+//            }
+//            
+//        }
+//        
+//        
+//        
+//    }
+//    
+//    func rewardBasedVideoAdDidStartPlaying(_ rewardBasedVideoAd: GADRewardBasedVideoAd) {
+//        print("Reward based video ad started playing.")
+//        
+//        adStart = Date()
+//        
+//        print("adtimer Start!!!!!!!!!!!.")
+//    }
     
 
   func vibrate() {

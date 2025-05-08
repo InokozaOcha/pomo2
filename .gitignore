@@ -1,0 +1,47 @@
+# macOS system files
+.DS_Store
+
+# Xcode
+build/
+DerivedData/
+*.pbxuser
+*.mode1v3
+*.mode2v3
+*.perspectivev3
+xcuserdata/
+*.xcscmblueprint
+*.xcuserstate
+
+# SwiftPM
+/.swiftpm/
+/Package.resolved
+/Packages/
+
+# CocoaPods
+Pods/
+Podfile.lock
+
+# Carthage
+Carthage/Build/
+
+# Fastlane
+fastlane/report.xml
+fastlane/Preview.html
+fastlane/screenshots/
+fastlane/test_output/
+
+# Firebase (セキュリティ対策でコミットしない)
+GoogleService-Info.plist
+
+# Archives
+*.xcarchive
+
+# Simulator logs
+*.simruntime
+*.simdevice
+
+# Crashlytics
+.crashlytics/
+
+# Xcode Preview canvas junk
+*.canvas

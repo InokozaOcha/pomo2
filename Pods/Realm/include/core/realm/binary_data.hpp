@@ -48,6 +48,7 @@ public:
         , m_size(data_size)
     {
     }
+    // Note! This version includes a trailing null character when using in place constant strings
     template <size_t N>
     explicit BinaryData(const char (&external_data)[N])
         : m_data(external_data)
@@ -180,7 +181,11 @@ inline bool operator<(const BinaryData& a, const BinaryData& b) noexcept
     if (a.is_null() || b.is_null())
         return !a.is_null() < !b.is_null();
 
-    return std::lexicographical_compare(a.m_data, a.m_data + a.m_size, b.m_data, b.m_data + b.m_size);
+    // memcmp does comparison using unsigned characters which gives the correct ordering for utf8
+    int cmp = memcmp(a.m_data, b.m_data, std::min(a.size(), b.size()));
+    if (cmp == 0 && a.size() < b.size())
+        return true;
+    return cmp < 0;
 }
 
 inline bool operator>(const BinaryData& a, const BinaryData& b) noexcept
@@ -225,7 +230,12 @@ inline bool BinaryData::contains(BinaryData d) const noexcept
 template <class C, class T>
 inline std::basic_ostream<C, T>& operator<<(std::basic_ostream<C, T>& out, const BinaryData& d)
 {
-    out << "BinaryData(" << static_cast<const void*>(d.m_data) << ", " << d.m_size << ")";
+    if (d.is_null()) {
+        out << "null";
+    }
+    else {
+        out << "BinaryData(" << static_cast<const void*>(d.m_data) << ", " << d.m_size << ")";
+    }
     return out;
 }
 

@@ -1,29 +1,26 @@
-
-/*************************************************************************
- *
- * REALM CONFIDENTIAL
- * __________________
- *
- *  [2011] - [2017] Realm Inc
- *  All Rights Reserved.
- *
- * NOTICE:  All information contained herein is, and remains
- * the property of Realm Incorporated and its suppliers,
- * if any.  The intellectual and technical concepts contained
- * herein are proprietary to Realm Incorporated
- * and its suppliers and may be covered by U.S. and Foreign Patents,
- * patents in process, and are protected by trade secret or copyright law.
- * Dissemination of this information or reproduction of this material
- * is strictly forbidden unless prior written permission is obtained
- * from Realm Incorporated.
- *
- **************************************************************************/
+///////////////////////////////////////////////////////////////////////////
+//
+// Copyright 2022 Realm Inc.
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+// http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
+//
+////////////////////////////////////////////////////////////////////////////
 
 #ifndef REALM_UTIL_FLAT_MAP_HPP
 #define REALM_UTIL_FLAT_MAP_HPP
 
 #include <vector>
-#include <utility> // std::pair
+#include <utility>   // std::pair
 #include <algorithm> // std::lower_bound etc.
 #include <type_traits>
 
@@ -32,21 +29,45 @@
 namespace realm {
 namespace util {
 
-template <class K, class V, class Container = std::vector<std::pair<K,V>>, class Cmp = std::less<>>
+template <class K, class V, class Cmp = std::less<>, class Container = std::vector<std::pair<K, V>>>
 struct FlatMap {
     using value_type = std::pair<K, V>;
     using key_type = K;
     using mapped_type = V;
-    FlatMap() {}
+    using container_type = Container;
+    using iterator = typename Container::iterator;
+    using const_iterator = typename Container::const_iterator;
+
+    FlatMap() = default;
     FlatMap(const FlatMap&) = default;
     FlatMap(FlatMap&&) = default;
+    FlatMap(Container&& values)
+    {
+        for (auto v : values) {
+            insert(v);
+        }
+    }
+
+    template <typename Iterator>
+    FlatMap(Iterator begin, Iterator end)
+    {
+        for (; begin != end; ++begin) {
+            insert(*begin);
+        }
+    }
+
+    FlatMap(std::initializer_list<value_type> values)
+        : FlatMap(values.begin(), values.end())
+    {
+    }
+
     FlatMap& operator=(const FlatMap&) = default;
     FlatMap& operator=(FlatMap&&) = default;
 
     V& at(K key)
     {
         auto it = lower_bound(key);
-        if (it == end() || it->first != key)
+        if (it == end() || !keys_equal(it->first, key))
             it = m_data.emplace(it, std::move(key), V{}); // Throws
         return it->second;
     }
@@ -64,29 +85,49 @@ struct FlatMap {
         return at(key); // Throws
     }
 
-    using iterator = typename Container::iterator;
-    using const_iterator = typename Container::const_iterator;
-    iterator begin() noexcept { return m_data.begin(); }
-    iterator end()   noexcept { return m_data.end(); }
-    const_iterator begin() const noexcept { return m_data.begin(); }
-    const_iterator end()   const noexcept { return m_data.end(); }
+    iterator begin() noexcept
+    {
+        return m_data.begin();
+    }
+    iterator end() noexcept
+    {
+        return m_data.end();
+    }
+    const_iterator begin() const noexcept
+    {
+        return m_data.begin();
+    }
+    const_iterator end() const noexcept
+    {
+        return m_data.end();
+    }
 
+    bool empty() const noexcept
+    {
+        return m_data.empty();
+    }
 
-    bool empty() const noexcept { return m_data.empty(); }
-    size_t size() const noexcept { return m_data.size(); }
-    void clear() noexcept { m_data.clear(); }
+    size_t size() const noexcept
+    {
+        return m_data.size();
+    }
 
-    std::pair<iterator,bool> insert(value_type value)
+    void clear() noexcept
+    {
+        m_data.clear();
+    }
+
+    std::pair<iterator, bool> insert(value_type value)
     {
         auto it = lower_bound(value.first);
-        if (it != end() && it->first == value.first) {
+        if (it != end() && keys_equal(it->first, value.first)) {
             return std::make_pair(it, false);
         }
         return std::make_pair(m_data.emplace(it, std::move(value)), true); // Throws
     }
 
     template <class P>
-    std::pair<iterator,bool> insert(P pair)
+    std::pair<iterator, bool> insert(P pair)
     {
         return insert(value_type{std::get<0>(pair), std::get<1>(pair)});
     }
@@ -100,7 +141,7 @@ struct FlatMap {
     }
 
     template <class... Args>
-    std::pair<iterator,bool> emplace(Args&&... args)
+    std::pair<iterator, bool> emplace(Args&&... args)
     {
         value_type value{std::forward<Args>(args)...};
         return insert(std::move(value));
@@ -118,7 +159,8 @@ struct FlatMap {
         return m_data.erase(pos);
     }
 
-    iterator erase(const_iterator first, const_iterator last) noexcept(std::is_nothrow_move_assignable<value_type>::value)
+    iterator erase(const_iterator first,
+                   const_iterator last) noexcept(std::is_nothrow_move_assignable<value_type>::value)
     {
         return m_data.erase(first, last);
     }
@@ -156,7 +198,7 @@ struct FlatMap {
     const_iterator find(const Key& key) const noexcept
     {
         auto it = lower_bound(key);
-        if (it != end() && it->first != key) {
+        if (it == end() || !keys_equal(it->first, key)) {
             return end();
         }
         return it;
@@ -192,6 +234,12 @@ struct FlatMap {
     }
 
 private:
+    template <typename Lhs, typename Rhs>
+    bool keys_equal(const Lhs& lhs, const Rhs& rhs) const
+    {
+        Cmp cmp{};
+        return !cmp(lhs, rhs) && !cmp(rhs, lhs);
+    }
     Container m_data;
 };
 

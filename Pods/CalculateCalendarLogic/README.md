@@ -29,12 +29,12 @@ public func judgeJapaneseHoliday(year: Int, month: Int, day: Int) -> Bool {
 
 ### Requirements & Support
 
-+ iOS 9 or later
-+ macOS 10.10 or later
++ iOS 14.0 or later
++ macOS 11.0 or later
 
 ### Installation
 
-We can use this library with CocoaPods, Carthage, Manually.
+We can use this library with CocoaPods, Carthage, Swift Package Manager, Manually.
 
 ##### Use CocoaPods
 
@@ -43,7 +43,7 @@ Create Podfile and specify it in your Podfile:
 ★ Example of Podfile
 
 ```
-platform :ios, '9.0'
+platform :ios, '14.0'
 use_frameworks!
 target [YOUR PROJECT NAME]' do
   pod 'CalculateCalendarLogic'
@@ -59,6 +59,11 @@ Create Carthage and specify it in your Cartfile:
 ```
 github "fumiyasac/handMadeCalendarAdvance"
 ```
+
+##### Use Swift Package Manager
+
+Using Xcode, go to File -> Swift Packages -> Add Package Dependency and enter URL below:
+https://github.com/fumiyasac/handMadeCalendarAdvance
 
 ##### Manually
 
@@ -105,6 +110,8 @@ Special Thanks to
 + [econa77](https://twitter.com/econa77): Mac OS 10.10 Support
 + [essochi](https://github.com/essochi): Ver0.1.7
 + [myammm](https://github.com/myammm): Ver0.2.0 
++ [kazuomatz](https://github.com/kazuomatz): Refactoring & Bugfix
++ [uhooi](https://github.com/uhooi): Add Github Actions
 
 and more iOS developers.
 
@@ -149,12 +156,12 @@ public func judgeJapaneseHoliday(year: Int, month: Int, day: Int) -> Bool {
 
 ### 対応バージョンとサポート
 
-+ iOS 9 or later
-+ macOS 10.10 or later
++ iOS 14.0 or later
++ macOS 11.0 or later
 
 ### 導入方法
 
-このライブラリはCocoaPods・Carthage及び手動での追加に対応しています。
+このライブラリはCocoaPods・Carthage・Swift Package Manager及び手動での追加に対応しています。
 
 ##### CocoaPodsでの追加
 
@@ -180,6 +187,11 @@ github "fumiyasac/handMadeCalendarAdvance"
 ```
 
 参考：[Carthageを使った外部ライブラリ導入方法](http://swift.swift-studying.com/entry/2015/09/23/215356)
+
+##### Swift Package Managerでの追加
+
+お使いのXcodeで「File -> Swift Packages -> Add Package Dependency」と進み、後述するURLを入力してEnterキーを押下して下さい。
+https://github.com/fumiyasac/handMadeCalendarAdvance
 
 ##### 手動での追加
 
@@ -220,7 +232,7 @@ print("2016年1月1日：\(result)")
 
 現行プログラムでCalculateCalendarLogic.swiftで考慮したテストケースは下記の通りです。
 
-+ 今年(2016年)の祝祭日の判定が正しく行えていること
++ 今年(2016年〜2025年)の祝祭日の判定が正しく行えていること
 + ゴールデンウィークの判定が正しく行えていること(※サンプル：2017年/2019年/2021年)
 + シルバーウィークの判定が正しく行えていること(※サンプル：2015年/2026年/2032年)
 + 春分の日・秋分の日の判定が正しく行えていること(※サンプル：2000年〜2030年)
@@ -235,7 +247,12 @@ print("2016年1月1日：\(result)")
 
 まだまだ甘い部分があるかもしれませんが、その際はPullRequest等を送っていただければ幸いです。アプリ開発の中でこのサンプルが少しでもお役にたつ事ができれば嬉しい限りです。
 
++ 2025.01.02: 保守対応を行いました。
++ 2023.01.01: 保守対応＆iOS16で利用可能なUICalendarViewのサンプル追加を行いました。
++ 2021.06.05: Gihub Actions追加（[uhooi](https://github.com/uhooi)様）
++ 2020.12.02: Xcode12.2への対応/2021年の祝日に関する追加対応/サンプルコード修正等を行いました。
 + 2019.06.26: Swift5.0及びXcode10.2.1への対応を行いました。
++ 2019.01.23: 2019年の祝日に関する追加対応を行いました（[kazuomatz](https://github.com/kazuomatz)様）。
 + 2018.12.02: Swift4.2及びXcode10への対応を行いました。
 + 2018.08.08: 2020年のカレンダーへの対応を行いました（[myammm](https://github.com/myammm)様）。
 + 2018.07.04: Swift4.1及びXCode9.4への対応を行いました（[essochi](https://github.com/essochi)様）。
@@ -251,5 +268,9 @@ print("2016年1月1日：\(result)")
 
 ### 謝辞
 
-このライブラリの作成にあたり[akio0911](https://github.com/akio0911)さん、[akuraru](https://github.com/akuraru)さん、[keygx](https://github.com/keygx)さん、+ [econa77](https://twitter.com/econa77)さんに多くのお力添えを頂きまして誠にありがとうございました。
+このライブラリの作成にあたり[akio0911](https://github.com/akio0911)様、[akuraru](https://github.com/akuraru)様、[keygx](https://github.com/keygx)様、[econa77](https://twitter.com/econa77)様、[kazuomatz](https://github.com/kazuomatz)様、[essochi](https://github.com/essochi)様、[myammm](https://github.com/myammm)様、[uhooi](https://github.com/uhooi)様をはじめ皆様からの多くのアドバイスやお力添えを頂きまして誠にありがとうございました。
 また、プルリクエスト等を定期的に頂けることで本当に助かっております。
+
+### 参考
+
++ [内閣府ホームページ](https://www8.cao.go.jp/chosei/shukujitsu/gaiyou.html)

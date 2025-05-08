@@ -43,6 +43,7 @@ typedef SSIZE_T ssize_t;
 
 #include <realm/util/features.h>
 #include <realm/util/assert.hpp>
+#include <realm/util/functional.hpp>
 #include <realm/util/safe_int_ops.hpp>
 
 // GCC defines __i386__ and __x86_64__
@@ -67,14 +68,14 @@ typedef SSIZE_T ssize_t;
 #endif
 
 
-#if defined(REALM_PTR_64) && defined(REALM_X86_OR_X64)
+#if defined(REALM_PTR_64) && defined(REALM_X86_OR_X64) && !REALM_WATCHOS
 #define REALM_COMPILER_SSE // Compiler supports SSE 4.2 through __builtin_ accessors or back-end assembler
 #define REALM_COMPILER_AVX
 #endif
 
 namespace realm {
 
-using StringCompareCallback = std::function<bool(const char* string1, const char* string2)>;
+using StringCompareCallback = util::UniqueFunction<bool(const char* string1, const char* string2)>;
 
 extern signed char sse_support;
 extern signed char avx_support;
@@ -120,14 +121,10 @@ REALM_FORCEINLINE bool sseavx()
 }
 
 void cpuid_init();
-void* round_up(void* p, size_t align);
-void* round_down(void* p, size_t align);
-size_t round_up(size_t p, size_t align);
-size_t round_down(size_t p, size_t align);
 void millisleep(unsigned long milliseconds);
 
 #ifdef _WIN32
-int gettimeofday(struct timeval * tp, struct timezone * tzp);
+int gettimeofday(struct timeval* tp, struct timezone* tzp);
 #endif
 
 int64_t platform_timegm(tm time);
@@ -139,6 +136,20 @@ void process_mem_usage(double& vm_usage, double& resident_set);
 int fast_popcount32(int32_t x);
 int fast_popcount64(int64_t x);
 uint64_t fastrand(uint64_t max = 0xffffffffffffffffULL, bool is_seed = false);
+
+// Class to be used when a private generator is wanted.
+// Object of this class should not be shared between threads.
+class FastRand {
+public:
+    FastRand(uint64_t seed = 1)
+        : m_state(seed)
+    {
+    }
+    uint64_t operator()(uint64_t max = uint64_t(-1));
+
+private:
+    uint64_t m_state;
+};
 
 // log2 - returns -1 if x==0, otherwise log2(x)
 inline int log2(size_t x)
@@ -162,6 +173,36 @@ inline int log2(size_t x)
 #else // not __GNUC__ and not _WIN32
     int r = 0;
     while (x >>= 1) {
+        r++;
+    }
+    return r;
+#endif
+}
+
+// count trailing zeros (from least-significant bit)
+inline int ctz(size_t x)
+{
+    if (x == 0)
+        return sizeof(x) * 8;
+
+#if defined(__GNUC__)
+#ifdef REALM_PTR_64
+    return __builtin_ctzll(x); // returns int
+#else
+    return __builtin_ctz(x);      // returns int
+#endif
+#elif defined(_WIN32)
+    unsigned long index = 0;
+#ifdef REALM_PTR_64
+    unsigned char c = _BitScanForward64(&index, x); // outputs unsigned long
+#else
+    unsigned char c = _BitScanForward(&index, x); // outputs unsigned long
+#endif
+    return static_cast<int>(index);
+#else // not __GNUC__ and not _WIN32
+    int r = 0;
+    while (r < sizeof(size_t) * 8 && (x & 1) == 0) {
+        x >>= 1;
         r++;
     }
     return r;
@@ -205,6 +246,7 @@ enum FindRes {
 enum IndexMethod {
     index_FindFirst,
     index_FindAll_nocopy,
+    index_FindAll_prefix,
     index_Count,
 };
 
@@ -214,7 +256,7 @@ enum IndexMethod {
 struct InternalFindResult {
     // Reference to a IntegerColumn containing result rows, or a single row
     // value if the result is FindRes_single.
-    size_t payload;
+    int64_t payload;
     // Offset into the result column to start at.
     size_t start_ndx;
     // Offset index in the result column to end at.
@@ -225,16 +267,16 @@ struct InternalFindResult {
 // realm::is_any<T, U1, U2, U3, ...> ==
 // std::is_same<T, U1>::value || std::is_same<T, U2>::value || std::is_same<T, U3>::value ...
 template <typename... T>
-struct is_any : std::false_type {
-};
+struct is_any : std::false_type {};
 
 template <typename T, typename... Ts>
-struct is_any<T, T, Ts...> : std::true_type {
-};
+struct is_any<T, T, Ts...> : std::true_type {};
 
 template <typename T, typename U, typename... Ts>
-struct is_any<T, U, Ts...> : is_any<T, Ts...> {
-};
+struct is_any<T, U, Ts...> : is_any<T, Ts...> {};
+
+template <typename... Ts>
+inline constexpr bool is_any_v = is_any<Ts...>::value;
 
 
 // Use realm::safe_equal() instead of std::equal() if one of the parameters can be a null pointer.
@@ -256,7 +298,7 @@ bool safe_equal(InputIterator1 first1, InputIterator1 last1, InputIterator2 firs
 
 // Use realm::safe_copy_n() instead of std::copy_n() if one of the parameters can be a null pointer. See the
 // explanation of safe_equal() above; same things apply.
-template< class InputIt, class Size, class OutputIt>
+template <class InputIt, class Size, class OutputIt>
 OutputIt safe_copy_n(InputIt first, Size count, OutputIt result)
 {
 #if defined(_MSC_VER)
@@ -274,38 +316,61 @@ OutputIt safe_copy_n(InputIt first, Size count, OutputIt result)
 #endif
 }
 
-
-template <class T>
-struct Wrap {
-    Wrap(const T& v)
-        : m_value(v)
-    {
+// Converts ascii c-locale uppercase characters to lower case,
+// leaves other char values unchanged.
+inline char toLowerAscii(char c)
+{
+    if (isascii(c) && isupper(c)) {
+#if REALM_ANDROID
+        return tolower(c); // _tolower is not supported on all ABI levels
+#else
+        return _tolower(c);
+#endif
     }
-    operator T() const
-    {
-        return m_value;
-    }
+    return c;
+}
 
-private:
-    T m_value;
-};
+inline void* round_up(void* p, uintptr_t align)
+{
+    uintptr_t r = uintptr_t(p) % align == 0 ? 0 : align - uintptr_t(p) % align;
+    return static_cast<char*>(p) + r;
+}
 
-// PlacementDelete is intended for use with std::unique_ptr when it holds an object allocated with
-// placement new. It simply calls the object's destructor without freeing the memory.
-struct PlacementDelete {
-    template <class T>
-    void operator()(T* v) const
-    {
-        v->~T();
+inline void* round_down(void* p, uintptr_t align)
+{
+    uintptr_t r = uintptr_t(p);
+    return reinterpret_cast<void*>(r & ~(align - 1));
+}
+
+constexpr size_t round_up(size_t p, size_t align)
+{
+    size_t r = p % align == 0 ? 0 : align - p % align;
+    return p + r;
+}
+
+constexpr size_t round_down(size_t p, size_t align)
+{
+    size_t r = p;
+    return r & (~(align - 1));
+}
+
+// return pointer to found character or to terminating NUL
+static inline const char* find_chr(const char* p, char c)
+{
+    while (*p && *p != c) {
+        ++p;
     }
-};
+    return p;
+}
 
 #ifdef _WIN32
-typedef void* FileDesc;
+typedef HANDLE FileDesc;
 #else
 typedef int FileDesc;
 #endif
 
+
+enum class IteratorControl { AdvanceToNext, Stop };
 
 } // namespace realm
 

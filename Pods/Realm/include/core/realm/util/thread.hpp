@@ -19,67 +19,30 @@
 #ifndef REALM_UTIL_THREAD_HPP
 #define REALM_UTIL_THREAD_HPP
 
+#include <realm/util/assert.hpp>
+#include <realm/util/features.h>
+#include <realm/util/terminate.hpp>
+
+#include <atomic>
+#include <cerrno>
+#include <cstddef>
 #include <exception>
+#include <memory>
+#include <stdexcept>
+#include <string>
 
 #ifdef _WIN32
-#include <thread>
 #include <condition_variable> // for windows non-interprocess condvars we use std::condition_variable
+#include <thread>
 #include <Windows.h>
 #include <process.h> // _getpid()
 #else
 #include <pthread.h>
 #endif
 
-// Use below line to enable a thread bug detection tool. Note: Will make program execution slower.
-// #include <../test/pthread_test.hpp>
-
-#include <cerrno>
-#include <cstddef>
-#include <string>
-
-#include <realm/util/features.h>
-#include <realm/util/assert.hpp>
-#include <realm/util/terminate.hpp>
-#include <memory>
-
-#include <atomic>
-
-namespace realm {
-namespace util {
-
-
-/// A separate thread of execution.
-///
-/// This class is a C++03 compatible reproduction of a subset of std::thread
-/// from C++11 (when discounting Thread::start(), Thread::set_name(), and
-/// Thread::get_name()).
+namespace realm::util {
 class Thread {
 public:
-    Thread();
-    ~Thread() noexcept;
-
-    template <class F>
-    explicit Thread(F func);
-
-    // Disable copying. It is an error to copy this Thread class.
-    Thread(const Thread&) = delete;
-    Thread& operator=(const Thread&) = delete;
-
-    Thread(Thread&&);
-
-    /// This method is an extension of the API provided by
-    /// std::thread. This method exists because proper move semantics
-    /// is unavailable in C++03. If move semantics had been available,
-    /// calling `start(func)` would have been equivalent to `*this =
-    /// Thread(func)`. Please see std::thread::operator=() for
-    /// details.
-    template <class F>
-    void start(F func);
-
-    bool joinable() noexcept;
-
-    void join();
-
     // If supported by the platform, set the name of the calling thread (mainly
     // for debugging purposes). The name will be silently clamped to whatever
     // limit the platform places on these names. Linux places a limit of 15
@@ -89,25 +52,7 @@ public:
     // If supported by the platform, this function assigns the name of the
     // calling thread to \a name, and returns true, otherwise it does nothing
     // and returns false.
-    static bool get_name(std::string& name);
-
-private:
-
-#ifdef _WIN32
-    std::thread m_std_thread;
-#else    
-    pthread_t m_id;
-#endif
-    bool m_joinable;
-    typedef void* (*entry_func_type)(void*);
-
-    void start(entry_func_type, void* arg);
-
-    template <class>
-    static void* entry_point(void*) noexcept;
-
-    REALM_NORETURN static void create_failed(int);
-    REALM_NORETURN static void join_failed(int);
+    static bool get_name(std::string& name) noexcept;
 };
 
 
@@ -117,8 +62,7 @@ public:
     Mutex();
     ~Mutex() noexcept;
 
-    struct process_shared_tag {
-    };
+    struct process_shared_tag {};
     /// Initialize this mutex for use across multiple processes. When
     /// constructed this way, the instance may be placed in memory
     /// shared by multiple processes, as well as in a memory mapped
@@ -149,11 +93,8 @@ protected:
     pthread_mutex_t m_impl = PTHREAD_MUTEX_INITIALIZER;
 #endif
 
-    struct no_init_tag {
-    };
-    Mutex(no_init_tag)
-    {
-    }
+    struct no_init_tag {};
+    Mutex(no_init_tag) {}
 
     void init_as_regular();
     void init_as_process_shared(bool robust_if_available);
@@ -182,8 +123,7 @@ private:
 
 
 /// See UniqueLock.
-struct defer_lock_tag {
-};
+struct defer_lock_tag {};
 
 /// A general-purpose mutex ownership wrapper supporting deferred
 /// locking as well as repeated unlocking and relocking.
@@ -217,7 +157,11 @@ public:
     RobustMutex();
     ~RobustMutex() noexcept;
 
-    static bool is_robust_on_this_platform() noexcept;
+#ifdef REALM_HAVE_ROBUST_PTHREAD_MUTEX
+    constexpr static bool is_robust_on_this_platform = true;
+#else
+    constexpr static bool is_robust_on_this_platform = false;
+#endif
 
     class NotRecoverable;
 
@@ -335,8 +279,7 @@ public:
     CondVar();
     ~CondVar() noexcept;
 
-    struct process_shared_tag {
-    };
+    struct process_shared_tag {};
 
     /// Initialize this condition variable for use across multiple
     /// processes. When constructed this way, the instance may be
@@ -375,78 +318,43 @@ private:
 };
 
 
+class RaceDetector {
+    std::atomic<bool> busy;
+
+public:
+    RaceDetector()
+    {
+        busy.store(false);
+    }
+    void enter()
+    {
+        bool already_busy = busy.exchange(true, std::memory_order_acq_rel);
+        if (already_busy)
+            throw std::runtime_error("Race detected - critical section busy on entry");
+    }
+    void leave()
+    {
+        busy.store(false, std::memory_order_release);
+    }
+    friend class CriticalSection;
+};
+
+class CriticalSection {
+    RaceDetector& rd;
+
+public:
+    CriticalSection(RaceDetector& race)
+        : rd(race)
+    {
+        rd.enter();
+    }
+    ~CriticalSection()
+    {
+        rd.leave();
+    }
+};
+
 // Implementation:
-
-inline Thread::Thread()
-    : m_joinable(false)
-{
-}
-
-template <class F>
-inline Thread::Thread(F func)
-    : m_joinable(true)
-{
-    std::unique_ptr<F> func2(new F(func));       // Throws
-    start(&Thread::entry_point<F>, func2.get()); // Throws
-    func2.release();
-}
-
-inline Thread::Thread(Thread&& thread)
-{
-#ifndef _WIN32
-    m_id = thread.m_id;
-    m_joinable = thread.m_joinable;
-    thread.m_joinable = false;
-#endif
-}
-
-template <class F>
-inline void Thread::start(F func)
-{
-    if (m_joinable)
-        std::terminate();
-    std::unique_ptr<F> func2(new F(func));       // Throws
-    start(&Thread::entry_point<F>, func2.get()); // Throws
-    func2.release();
-    m_joinable = true;
-}
-
-inline Thread::~Thread() noexcept
-{
-    if (m_joinable)
-        REALM_TERMINATE("Destruction of joinable thread");
-}
-
-inline bool Thread::joinable() noexcept
-{
-    return m_joinable;
-}
-
-inline void Thread::start(entry_func_type entry_func, void* arg)
-{
-#ifdef _WIN32
-    m_std_thread = std::thread(entry_func, arg);
-#else
-    const pthread_attr_t* attr = nullptr; // Use default thread attributes
-    int r = pthread_create(&m_id, attr, entry_func, arg);
-    if (REALM_UNLIKELY(r != 0))
-        create_failed(r); // Throws
-#endif
-}
-
-template <class F>
-inline void* Thread::entry_point(void* cookie) noexcept
-{
-    std::unique_ptr<F> func(static_cast<F*>(cookie));
-    try {
-        (*func)();
-    }
-    catch (...) {
-        std::terminate();
-    }
-    return 0;
-}
-
 
 inline Mutex::Mutex()
 {
@@ -588,9 +496,7 @@ inline RobustMutex::RobustMutex()
     init_as_process_shared(robust_if_available);
 }
 
-inline RobustMutex::~RobustMutex() noexcept
-{
-}
+inline RobustMutex::~RobustMutex() noexcept {}
 
 template <class Func>
 inline void RobustMutex::lock(Func recover_func)
@@ -620,7 +526,8 @@ template <class Func>
 inline bool RobustMutex::try_lock(Func recover_func)
 {
     int lock_result = try_low_level_lock(); // Throws
-    if (lock_result == 0) return false;
+    if (lock_result == 0)
+        return false;
     bool no_thread_has_died = lock_result == 1;
     if (REALM_LIKELY(no_thread_has_died))
         return true;
@@ -699,8 +606,9 @@ inline void CondVar::wait(RobustMutex& m, Func recover_func, const struct timesp
             r = GetLastError();
             if (r == ERROR_TIMEOUT)
                 return;
-        } else {
-            r = 0
+        }
+        else {
+            r = 0;
         }
 #else
         r = pthread_cond_timedwait(&m_impl, &m.m_impl, tp);
@@ -752,8 +660,26 @@ inline void CondVar::notify_all() noexcept
 #endif
 }
 
+// helpers which can ensure atomic access to memory which has not itself been declared atomic.
+// This can be used to e.g. ensure atomic access to members of a vector. Vectors does not
+// fully allow atomic members because operations on vector may relocate the underlying memory.
+// use with care!
+template <typename T>
+T load_atomic(T& t_ref, std::memory_order order)
+{
+    std::atomic<T>* t_ptr = reinterpret_cast<std::atomic<T>*>(&t_ref);
+    T t = atomic_load_explicit(t_ptr, order);
+    return t;
+}
 
-} // namespace util
-} // namespace realm
+template <typename T>
+void store_atomic(T& t_ref, T value, std::memory_order order)
+{
+    std::atomic<T>* t_ptr = reinterpret_cast<std::atomic<T>*>(&t_ref);
+    atomic_store_explicit(t_ptr, value, order);
+}
+
+
+} // namespace realm::util
 
 #endif // REALM_UTIL_THREAD_HPP
